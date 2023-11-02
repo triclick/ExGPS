@@ -1,8 +1,6 @@
-package com.example.exgps;
+package com.example.myapplication;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import static android.content.pm.PackageManager.*;
 
 import android.Manifest;
 import android.content.Context;
@@ -14,28 +12,34 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 public class MainActivity extends AppCompatActivity {
+
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button btn01 = (Button)findViewById(R.id.btn01) ;
+        Button btn01 = (Button) findViewById(R.id.btn01);
         btn01.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                startLocationSVC() ;
+            public void onClick (View v){
+                //startLocationSVC();
+                checkLocationPermission() ;
             }
         });
-        checkDangerousPermissions();
+        // checkDangerousPermissions();
     }
 
-    // 위치 정보를 확인하기 위한 메소드
     private void startLocationSVC(){
         LocationManager manager = (LocationManager)getSystemService(Context.LOCATION_SERVICE) ;
 
@@ -46,9 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             // GPS Provider를 이용한 위치 요청
-            manager.requestLocationUpdates(LocationManager.GPS_PROVIDER,minTime,minDistance,gpsListener);
+            manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTime, minDistance,gpsListener);
             //Network Provider를 이용한 위치 요청
-            manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,minTime,minDistance,gpsListener);
+            manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTime, minDistance,gpsListener);
 
             Location lastLocation = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER) ;
             if(lastLocation != null){
@@ -56,55 +60,51 @@ public class MainActivity extends AppCompatActivity {
                 Double longitude = lastLocation.getLongitude() ;
                 Toast.makeText(getApplicationContext(),
                         "Last Known Location -> Latitude : "+ latitude + "\nLongtitude : " + longitude,
-                         Toast.LENGTH_LONG ).show() ;
+                        Toast.LENGTH_LONG ).show() ;
             }
 
         }catch(SecurityException ex){
             ex.printStackTrace();
         }
         Toast.makeText(getApplicationContext(),
-                        "위치 확인이 시작되었습니다. 로그 확인",Toast.LENGTH_SHORT).show();
+                "위치 확인이 시작되었습니다. 로그 확인",Toast.LENGTH_SHORT).show();
     }
 
-    private void checkDangerousPermissions(){
-        String[] permissions = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-        };
-
-        int permissionCheck = PackageManager.PERMISSION_GRANTED ;
-        for(int i = 0 ; i < permissions.length; i++){
-            permissionCheck = ContextCompat.checkSelfPermission(this, permissions[i]) ;
-            if(permissionCheck == PackageManager.PERMISSION_DENIED) {
-                break ;
-            }
-        }
-
-        if( permissionCheck == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this,"권한있음",Toast.LENGTH_SHORT).show() ;
+    //  private void checkDangerousPermissions(){
+    private void checkLocationPermission(){
+        if( ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED  ){
+            // 이미 권한이 승인된 경우
+            startLocationSVC();
         }
         else {
-            Toast.makeText(this,"권한없음",Toast.LENGTH_SHORT).show() ;
-
-            if(ActivityCompat.shouldShowRequestPermissionRationale(this,permissions[0])) {
-                Toast.makeText(this, "권한 설명 필요함", Toast.LENGTH_SHORT).show();
-            } else{
-                ActivityCompat.requestPermissions(this,permissions,1);
-            }
+            // 권한을 요청
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION }, LOCATION_PERMISSION_REQUEST_CODE ) ;
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults){
-        if(requestCode == 1){
-            for(int i = 0 ; i < permissions.length; i++){
-                if(grantResults[i] == PackageManager.PERMISSION_GRANTED){
-                    Toast.makeText(this,permissions[i] + "권한이 승인됨",Toast.LENGTH_LONG).show() ;
-                } else {
-                    Toast.makeText(this, permissions[i] + "권한이 승인되지 않음",Toast.LENGTH_SHORT).show() ;
+    public void onRequestPermissionsResult( int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults){
+            // super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+                boolean allGranted = true;
+                for (int grantResult : grantResults){
+                    if (grantResult != PERMISSION_GRANTED) {
+                        allGranted = false;
+                        break;
+                    }
                 }
+
+                if (allGranted) {
+                    // 권한이 승인된 경우
+                    startLocationSVC();
+                } else {
+                    Toast.makeText(this, "위치 권한이 승인되지 않음", Toast.LENGTH_SHORT).show();
+                }
+
             }
-        }
     }
 
     private class GPSListener implements LocationListener {
